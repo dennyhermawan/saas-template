@@ -1,8 +1,7 @@
 // app/todos/page.tsx
 
-import { supabase } from "@/lib/supabaseClient";
-import { currentUser } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
+import { supabase } from "@/lib/supabaseClient";
 
 type Todo = {
   id: number;
@@ -12,11 +11,13 @@ type Todo = {
   created_at: string;
 };
 
-async function getTodos(userId: string): Promise<Todo[]> {
+const DEMO_USER_ID = "demo-user"; // hardcode dulu untuk praktikum
+
+async function getTodos(): Promise<Todo[]> {
   const { data, error } = await supabase
     .from("todos")
     .select("*")
-    .eq("user_id", userId)
+    .eq("user_id", DEMO_USER_ID)
     .order("created_at", { ascending: false });
 
   if (error || !data) {
@@ -28,26 +29,18 @@ async function getTodos(userId: string): Promise<Todo[]> {
 }
 
 export default async function TodosPage() {
-  const user = await currentUser();
-  if (!user) {
-    return <div>Silakan login dulu.</div>;
-  }
-
-  const todos = await getTodos(user.id);
+  const todos = await getTodos();
 
   async function addTodo(formData: FormData) {
     "use server";
 
-    const user = await currentUser();
-    if (!user) {
-      throw new Error("Unauthorized");
-    }
-
     const title = formData.get("title") as string;
+
+    if (!title) return;
 
     await supabase.from("todos").insert({
       title,
-      user_id: user.id,
+      user_id: DEMO_USER_ID,
     });
 
     revalidatePath("/todos");
@@ -56,23 +49,18 @@ export default async function TodosPage() {
   async function toggleTodo(id: number, isDone: boolean) {
     "use server";
 
-    const user = await currentUser();
-    if (!user) {
-      throw new Error("Unauthorized");
-    }
-
     await supabase
       .from("todos")
       .update({ is_done: !isDone })
       .eq("id", id)
-      .eq("user_id", user.id);
+      .eq("user_id", DEMO_USER_ID);
 
     revalidatePath("/todos");
   }
 
   return (
     <main className="max-w-xl mx-auto p-4 space-y-4">
-      <h1 className="text-2xl font-bold">Todo Workspace</h1>
+      <h1 className="text-2xl font-bold">Todo Workspace (Demo User)</h1>
 
       <form action={addTodo} className="flex gap-2">
         <input
@@ -86,7 +74,7 @@ export default async function TodosPage() {
       </form>
 
       <ul className="space-y-2">
-        {todos.map((todo: Todo) => (
+        {todos.map((todo) => (
           <li
             key={todo.id}
             className="flex items-center justify-between border rounded px-3 py-2"
