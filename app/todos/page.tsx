@@ -3,20 +3,30 @@ import { supabase } from "@/lib/supabaseClient";
 import { currentUser } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 
-async function getTodos(userId: string) {
+type Todo = {
+  id: number;
+  title: string;
+  is_done: boolean;
+  user_id: string;
+  created_at: string;
+};
+
+
+async function getTodos(userId: string): Promise<Todo[]> {
   const { data, error } = await supabase
     .from("todos")
     .select("*")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
-  if (error) {
+  if (error || !data) {
     console.error(error);
     return [];
   }
 
-  return data;
+  return data as Todo[];
 }
+
 
 export default async function TodosPage() {
   const user = await currentUser();
@@ -63,7 +73,7 @@ export default async function TodosPage() {
       </form>
 
       <ul className="space-y-2">
-        {todos.map((todo: any) => (
+        {todos.map((todo: Todo) => (
           <li
             key={todo.id}
             className="flex items-center justify-between border rounded px-3 py-2"
