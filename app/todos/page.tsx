@@ -1,4 +1,5 @@
 // app/todos/page.tsx
+
 import { supabase } from "@/lib/supabaseClient";
 import { currentUser } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
@@ -10,7 +11,6 @@ type Todo = {
   user_id: string;
   created_at: string;
 };
-
 
 async function getTodos(userId: string): Promise<Todo[]> {
   const { data, error } = await supabase
@@ -27,15 +27,22 @@ async function getTodos(userId: string): Promise<Todo[]> {
   return data as Todo[];
 }
 
-
 export default async function TodosPage() {
   const user = await currentUser();
-  if (!user) return <div>Silakan login dulu.</div>;
+  if (!user) {
+    return <div>Silakan login dulu.</div>;
+  }
 
   const todos = await getTodos(user.id);
 
   async function addTodo(formData: FormData) {
     "use server";
+
+    const user = await currentUser();
+    if (!user) {
+      throw new Error("Unauthorized");
+    }
+
     const title = formData.get("title") as string;
 
     await supabase.from("todos").insert({
@@ -49,10 +56,16 @@ export default async function TodosPage() {
   async function toggleTodo(id: number, isDone: boolean) {
     "use server";
 
+    const user = await currentUser();
+    if (!user) {
+      throw new Error("Unauthorized");
+    }
+
     await supabase
       .from("todos")
       .update({ is_done: !isDone })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", user.id);
 
     revalidatePath("/todos");
   }
